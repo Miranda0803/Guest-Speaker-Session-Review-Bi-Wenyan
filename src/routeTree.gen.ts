@@ -10,33 +10,63 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as NotebookRouteImport } from './routes/notebook'
+import { Route as VaultIdIndexRouteImport } from './routes/vault.$id.index'
+import { Route as VaultIdQuizRouteImport } from './routes/vault.$id.quiz'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const NotebookRoute = NotebookRouteImport.update({
+  id: '/notebook',
+  path: '/notebook',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const VaultIdIndexRoute = VaultIdIndexRouteImport.update({
+  id: '/vault/$id/',
+  path: '/vault/$id/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const VaultIdQuizRoute = VaultIdQuizRouteImport.update({
+  id: '/vault/$id/quiz',
+  path: '/vault/$id/quiz',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/notebook': typeof NotebookRoute
+  '/vault/$id/quiz': typeof VaultIdQuizRoute
+  '/vault/$id/': typeof VaultIdIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/notebook': typeof NotebookRoute
+  '/vault/$id/quiz': typeof VaultIdQuizRoute
+  '/vault/$id': typeof VaultIdIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/notebook': typeof NotebookRoute
+  '/vault/$id/quiz': typeof VaultIdQuizRoute
+  '/vault/$id/': typeof VaultIdIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths: '/' | '/notebook' | '/vault/$id/quiz' | '/vault/$id/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to: '/' | '/notebook' | '/vault/$id/quiz' | '/vault/$id'
+  id: '__root__' | '/' | '/notebook' | '/vault/$id/quiz' | '/vault/$id/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  NotebookRoute: typeof NotebookRoute
+  VaultIdQuizRoute: typeof VaultIdQuizRoute
+  VaultIdIndexRoute: typeof VaultIdIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -48,11 +78,35 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/notebook': {
+      id: '/notebook'
+      path: '/notebook'
+      fullPath: '/notebook'
+      preLoaderRoute: typeof NotebookRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/vault/$id/': {
+      id: '/vault/$id/'
+      path: '/vault/$id'
+      fullPath: '/vault/$id/'
+      preLoaderRoute: typeof VaultIdIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/vault/$id/quiz': {
+      id: '/vault/$id/quiz'
+      path: '/vault/$id/quiz'
+      fullPath: '/vault/$id/quiz'
+      preLoaderRoute: typeof VaultIdQuizRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  NotebookRoute: NotebookRoute,
+  VaultIdQuizRoute: VaultIdQuizRoute,
+  VaultIdIndexRoute: VaultIdIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
