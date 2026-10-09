@@ -32,7 +32,7 @@ function Quiz() {
   if (!vault) return <Shell><p>Vault not found.</p></Shell>;
   if (!qs.length) return <Shell><p className="font-mono">Add more summary sentences to generate a quiz.</p></Shell>;
 
-  const q = qs[i];
+  const q = qs[i]!;
   const finish = () => {
     const wrong = qs.map((q, k) => ({ q, a: answers[k] ?? "" })).filter(({ q, a }) => norm(q.answer) !== norm(a));
     actions.updateVault(id, { score: { correct: qs.length - wrong.length, total: qs.length } });
