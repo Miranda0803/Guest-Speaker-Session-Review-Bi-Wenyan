@@ -130,7 +130,7 @@ export function generateQuiz(v: Vault): Question[] {
     .map((s) => s.trim())
     .filter((s) => s.split(" ").length >= 4);
   const keyword = (s: string) =>
-    s.replace(/[^\w\s-]/g, "").split(/\s+/).sort((a, b) => b.length - a.length)[0];
+    s.replace(/[^\w\s-]/g, "").split(/\s+/).sort((a, b) => b.length - a.length)[0] ?? "";
   const pool = sentences.map(keyword);
   const qs: Question[] = sentences.slice(0, 8).map((s, i) => {
     const k = keyword(s);
