@@ -36,9 +36,18 @@ function Workspace() {
   if (!vault) return <Shell><p>Vault not found. <Link to="/" className="underline">Back</Link></p></Shell>;
   const file = vault.files[active];
 
-  const onFiles = (list: FileList | null) => {
+  const onFiles = async (list: FileList | null) => {
     if (!list) return;
-    const added = Array.from(list).map((f) => ({ id: crypto.randomUUID(), name: f.name, type: f.type, url: URL.createObjectURL(f) }));
+    const added = await Promise.all(
+      Array.from(list).map(
+        (f) =>
+          new Promise<{ id: string; name: string; type: string; url: string }>((resolve) => {
+            const r = new FileReader();
+            r.onload = () => resolve({ id: crypto.randomUUID(), name: f.name, type: f.type, url: String(r.result) });
+            r.readAsDataURL(f);
+          }),
+      ),
+    );
     actions.updateVault(id, { files: [...vault.files, ...added] });
   };
 
