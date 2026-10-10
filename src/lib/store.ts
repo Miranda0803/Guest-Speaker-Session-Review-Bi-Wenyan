@@ -1,4 +1,5 @@
 import { useSyncExternalStore } from "react";
+import { supabase } from "@/integrations/supabase/client";
 
 export type VaultFile = { id: string; name: string; url: string; type: string };
 export type Vault = {
@@ -22,99 +23,121 @@ export type Note = {
 };
 type State = { vaults: Vault[]; notes: Note[] };
 
-const seed: State = {
-  vaults: [
-    {
-      id: "v1",
-      title: "Designing for Slowness",
-      speaker: "Maren Holt",
-      topic: "Product Design",
-      date: "2026-09-12",
-      summary:
-        "# Designing for Slowness\n\nFriction can be a feature when it creates reflection. Onboarding should reveal value before asking for commitment. Calm technology lives in the periphery of attention. Defaults shape the behaviour of most users. Delight comes from consistency rather than novelty.",
-      files: [],
-      score: { correct: 5, total: 6 },
-    },
-    {
-      id: "v2",
-      title: "The Analog Revival",
-      speaker: "Theo Abara",
-      topic: "Music Industry",
-      date: "2026-08-03",
-      summary:
-        "# The Analog Revival\n\nVinyl sales grew for seventeen consecutive years. Collectors value ownership over access. Independent pressing plants face capacity bottlenecks. Physical media builds deeper fan loyalty.",
-      files: [],
-    },
-  ],
-  notes: [
-    {
-      id: "n1",
-      vaultId: "v1",
-      question: "According to the talk, delight comes from ____ rather than novelty.",
-      userAnswer: "surprise",
-      correctAnswer: "consistency",
-      explanation: "The speaker argued that predictable, consistent experiences build trust, which users perceive as delight.",
-      mastered: false,
-    },
-  ],
-};
-
-const KEY = "vibe-vault-v1";
-let state: State = seed;
+let state: State = { vaults: [], notes: [] };
 let loaded = false;
 const listeners = new Set<() => void>();
+const emit = () => listeners.forEach((l) => l());
 
-function load() {
-  if (loaded || typeof window === "undefined") return;
+async function load() {
+  if (loaded) return;
   loaded = true;
-  try {
-    const raw = localStorage.getItem(KEY);
-    if (raw) state = JSON.parse(raw);
-  } catch {}
-}
-function set(fn: (s: State) => State) {
-  state = fn(state);
-  try {
-    localStorage.setItem(
-      KEY,
-      JSON.stringify({ ...state, vaults: state.vaults.map((v) => ({ ...v, files: v.files.filter((f) => !f.url.startsWith("blob:")) })) }),
-    );
-  } catch {}
-  listeners.forEach((l) => l());
+  const [{ data: vaults }, { data: files }, { data: notes }] = await Promise.all([
+    supabase.from("vaults").select("*").order("created_at", { ascending: false }),
+    supabase.from("vault_files").select("*").order("created_at", { ascending: true }),
+    supabase.from("notes").select("*").order("created_at", { ascending: false }),
+  ]);
+  state = {
+    vaults: (vaults ?? []).map((v) => ({
+      id: v.id,
+      title: v.title,
+      speaker: v.speaker,
+      topic: v.topic,
+      date: v.date,
+      summary: v.summary,
+      score: v.score_total ? { correct: v.score_correct ?? 0, total: v.score_total } : undefined,
+      files: (files ?? [])
+        .filter((f) => f.vault_id === v.id)
+        .map((f) => ({ id: f.id, name: f.name, type: f.type, url: f.data_url })),
+    })),
+    notes: (notes ?? []).map((n) => ({
+      id: n.id,
+      vaultId: n.vault_id,
+      question: n.question,
+      userAnswer: n.user_answer,
+      correctAnswer: n.correct_answer,
+      explanation: n.explanation,
+      mastered: n.mastered,
+    })),
+  };
+  emit();
 }
 
 export function useStore() {
   return useSyncExternalStore(
     (l) => {
-      load();
       listeners.add(l);
-      queueMicrotask(l);
+      void load();
       return () => listeners.delete(l);
     },
-    () => (load(), state),
-    () => seed,
+    () => state,
+    () => state,
   );
 }
 
-const uid = () => Math.random().toString(36).slice(2, 10);
-
 export const actions = {
-  createVault(v: Pick<Vault, "title" | "speaker" | "topic" | "date">) {
-    const id = uid();
-    set((s) => ({ ...s, vaults: [{ ...v, id, summary: `# ${v.title}\n\n`, files: [] }, ...s.vaults] }));
+  async createVault(v: Pick<Vault, "title" | "speaker" | "topic" | "date">) {
+    const summary = `# ${v.title}\n\n`;
+    const { data } = await supabase
+      .from("vaults")
+      .insert({ title: v.title, speaker: v.speaker, topic: v.topic, date: v.date, summary })
+      .select("id")
+      .single();
+    const id = data?.id ?? crypto.randomUUID();
+    state = { ...state, vaults: [{ ...v, id, summary, files: [] }, ...state.vaults] };
+    emit();
     return id;
   },
-  updateVault(id: string, patch: Partial<Vault>) {
-    set((s) => ({ ...s, vaults: s.vaults.map((v) => (v.id === id ? { ...v, ...patch } : v)) }));
+  async updateVault(id: string, patch: Partial<Omit<Vault, "files">>) {
+    state = { ...state, vaults: state.vaults.map((v) => (v.id === id ? { ...v, ...patch } : v)) };
+    emit();
+    const row: Record<string, unknown> = {};
+    if (patch.title !== undefined) row.title = patch.title;
+    if (patch.speaker !== undefined) row.speaker = patch.speaker;
+    if (patch.topic !== undefined) row.topic = patch.topic;
+    if (patch.date !== undefined) row.date = patch.date;
+    if (patch.summary !== undefined) row.summary = patch.summary;
+    if (patch.score !== undefined) {
+      row.score_correct = patch.score.correct;
+      row.score_total = patch.score.total;
+    }
+    if (Object.keys(row).length) await supabase.from("vaults").update(row).eq("id", id);
   },
-  deleteVault(id: string) {
-    set((s) => ({ vaults: s.vaults.filter((v) => v.id !== id), notes: s.notes.filter((n) => n.vaultId !== id) }));
+  async addFiles(vaultId: string, files: VaultFile[]) {
+    state = {
+      ...state,
+      vaults: state.vaults.map((v) => (v.id === vaultId ? { ...v, files: [...v.files, ...files] } : v)),
+    };
+    emit();
+    await supabase
+      .from("vault_files")
+      .insert(files.map((f) => ({ vault_id: vaultId, name: f.name, type: f.type, data_url: f.url })));
   },
-  addNotes(notes: Omit<Note, "id" | "mastered">[]) {
-    set((s) => ({ ...s, notes: [...notes.map((n) => ({ ...n, id: uid(), mastered: false })), ...s.notes] }));
+  async deleteVault(id: string) {
+    state = { vaults: state.vaults.filter((v) => v.id !== id), notes: state.notes.filter((n) => n.vaultId !== id) };
+    emit();
+    await supabase.from("vaults").delete().eq("id", id);
   },
-  toggleMastered(id: string) {
-    set((s) => ({ ...s, notes: s.notes.map((n) => (n.id === id ? { ...n, mastered: !n.mastered } : n)) }));
+  async addNotes(notes: Omit<Note, "id" | "mastered">[]) {
+    const rows = notes.map((n) => ({ ...n, id: crypto.randomUUID(), mastered: false }));
+    state = { ...state, notes: [...rows, ...state.notes] };
+    emit();
+    await supabase.from("notes").insert(
+      rows.map((n) => ({
+        id: n.id,
+        vault_id: n.vaultId,
+        question: n.question,
+        user_answer: n.userAnswer,
+        correct_answer: n.correctAnswer,
+        explanation: n.explanation,
+      })),
+    );
+  },
+  async toggleMastered(id: string) {
+    const n = state.notes.find((x) => x.id === id);
+    if (!n) return;
+    state = { ...state, notes: state.notes.map((x) => (x.id === id ? { ...x, mastered: !x.mastered } : x)) };
+    emit();
+    await supabase.from("notes").update({ mastered: !n.mastered }).eq("id", id);
   },
 };
 
