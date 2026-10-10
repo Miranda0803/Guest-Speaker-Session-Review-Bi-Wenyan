@@ -48,7 +48,7 @@ function Workspace() {
           }),
       ),
     );
-    actions.updateVault(id, { files: [...vault.files, ...added] });
+    actions.addFiles(id, added);
   };
 
   return (

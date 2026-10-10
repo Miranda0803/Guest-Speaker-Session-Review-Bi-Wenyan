@@ -86,9 +86,9 @@ function CreateModal({ onClose }: { onClose: () => void }) {
       <form
         className="panel w-full max-w-md space-y-3 bg-background p-6 animate-in zoom-in-95"
         onClick={(e) => e.stopPropagation()}
-        onSubmit={(e) => {
+        onSubmit={async (e) => {
           e.preventDefault();
-          const id = actions.createVault(f);
+          const id = await actions.createVault(f);
           nav({ to: "/vault/$id", params: { id } });
         }}
       >
