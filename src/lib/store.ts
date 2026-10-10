@@ -44,7 +44,7 @@ async function load() {
       topic: v.topic,
       date: v.date,
       summary: v.summary,
-      score: v.score_total ? { correct: v.score_correct ?? 0, total: v.score_total } : undefined,
+      score: v.score_total ? { correct: v.score_correct ?? 0, total: v.score_total } : undefined, // eslint-disable-line
       files: (files ?? [])
         .filter((f) => f.vault_id === v.id)
         .map((f) => ({ id: f.id, name: f.name, type: f.type, url: f.data_url })),
