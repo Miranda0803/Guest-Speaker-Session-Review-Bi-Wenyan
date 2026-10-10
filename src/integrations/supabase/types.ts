@@ -14,7 +14,118 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      notes: {
+        Row: {
+          correct_answer: string
+          created_at: string
+          explanation: string
+          id: string
+          mastered: boolean
+          question: string
+          user_answer: string
+          vault_id: string
+        }
+        Insert: {
+          correct_answer?: string
+          created_at?: string
+          explanation?: string
+          id?: string
+          mastered?: boolean
+          question: string
+          user_answer?: string
+          vault_id: string
+        }
+        Update: {
+          correct_answer?: string
+          created_at?: string
+          explanation?: string
+          id?: string
+          mastered?: boolean
+          question?: string
+          user_answer?: string
+          vault_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notes_vault_id_fkey"
+            columns: ["vault_id"]
+            isOneToOne: false
+            referencedRelation: "vaults"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      vault_files: {
+        Row: {
+          created_at: string
+          data_url: string
+          id: string
+          name: string
+          type: string
+          vault_id: string
+        }
+        Insert: {
+          created_at?: string
+          data_url: string
+          id?: string
+          name: string
+          type?: string
+          vault_id: string
+        }
+        Update: {
+          created_at?: string
+          data_url?: string
+          id?: string
+          name?: string
+          type?: string
+          vault_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vault_files_vault_id_fkey"
+            columns: ["vault_id"]
+            isOneToOne: false
+            referencedRelation: "vaults"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      vaults: {
+        Row: {
+          created_at: string
+          date: string
+          id: string
+          score_correct: number | null
+          score_total: number | null
+          speaker: string
+          summary: string
+          title: string
+          topic: string
+        }
+        Insert: {
+          created_at?: string
+          date?: string
+          id?: string
+          score_correct?: number | null
+          score_total?: number | null
+          speaker?: string
+          summary?: string
+          title: string
+          topic?: string
+        }
+        Update: {
+          created_at?: string
+          date?: string
+          id?: string
+          score_correct?: number | null
+          score_total?: number | null
+          speaker?: string
+          summary?: string
+          title?: string
+          topic?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
